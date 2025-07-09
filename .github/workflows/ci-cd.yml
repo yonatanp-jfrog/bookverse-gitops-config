@@ -12,6 +12,7 @@ jobs:
         id: get_version
         run: echo "VERSION=${{ github.event.client_payload.version }}" >> $GITHUB_ENV
       - name: Update values.yaml
+      # testing something
         run: |
           sed -i "s/solutionBundleVersion:.*/solutionBundleVersion: \"${{ env.VERSION }}\"/" helm/bookverse/values.yaml
       - name: Commit and Push Changes
