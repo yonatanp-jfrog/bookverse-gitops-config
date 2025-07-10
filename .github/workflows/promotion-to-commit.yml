@@ -18,8 +18,10 @@ jobs:
       - name: Get Promoted Bundle Info from Webhook
         id: get_info
         run: |
-          echo "BUNDLE_NAME=${{ github.event.client_payload.name }}" >> $GITHUB_ENV
-          echo "BUNDLE_VERSION=${{ github.event.client_payload.version }}" >> $GITHUB_ENV
+          #echo "BUNDLE_NAME=${{ github.event.client_payload.name }}" >> $GITHUB_ENV
+          #echo "BUNDLE_VERSION=${{ github.event.client_payload.version }}" >> $GITHUB_ENV
+          echo "BUNDLE_NAME=inventory-service" >> $GITHUB_ENV
+          echo "BUNDLE_VERSION=1.3.29" >> $GITHUB_ENV
 
       - name: Update Image Tags in values.yaml
         run: |
