@@ -1,6 +1,6 @@
 # This file will be dynamically updated by the promotion-to-commit workflow.
 # The initial values are placeholders.
-restart_timestamp: "1678886400"
+restart_timestamp: "1678886401"
 
 services:
   inventory:
