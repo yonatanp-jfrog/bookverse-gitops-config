@@ -15,15 +15,7 @@ jobs:
           sudo apt-get install -y jq
           sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq
 
-      - name: Setup JFrog CLI
-        uses: jfrog/setup-jfrog-cli@v4
-        env:
-          JF_URL: ${{ vars.JFROG_URL }}
-          JF_USER: ${{ vars.JFROG_USER }}
-          JF_ACCESS_TOKEN: ${{ secrets.JFROG_ACCESS_TOKEN }}
-          JF_PROJECT: "bookverse"
-
-      - name: Get Promoted Bundle Info
+      - name: Get Promoted Bundle Info from Webhook
         id: get_info
         run: |
           echo "BUNDLE_NAME=${{ github.event.client_payload.name }}" >> $GITHUB_ENV
@@ -31,14 +23,14 @@ jobs:
 
       - name: Update Image Tags in values.yaml
         run: |
-          # Get the platform bundle contents to find the source microservice bundles
-          PLATFORM_BUNDLE_CONTENTS=$(jfrog rt rbs ${{ env.BUNDLE_NAME }} ${{ env.BUNDLE_VERSION }} --format=json)
+          # Use a direct API call to get the platform bundle contents
+          PLATFORM_BUNDLE_CONTENTS=$(curl -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "${{ vars.JFROG_URL }}/lifecycle/api/v2/release_bundles/${{ env.BUNDLE_NAME }}/${{ env.BUNDLE_VERSION }}?project=bookverse")
           echo "Platform Bundle Contents: $PLATFORM_BUNDLE_CONTENTS"
 
           # Loop through each source microservice bundle within the platform bundle
-          for service_bundle in $(echo "${PLATFORM_BUNDLE_CONTENTS}" | jq -r '.source_release_bundles[]'); do
-            SERVICE_BUNDLE_NAME=$(echo "$service_bundle" | jq -r '.name')
-            SERVICE_VERSION=$(echo "$service_bundle" | jq -r '.version')
+          for service_bundle in $(echo "${PLATFORM_BUNDLE_CONTENTS}" | jq -r '.source.release_bundles[]'); do
+            SERVICE_BUNDLE_NAME=$(echo "$service_bundle" | jq -r '.release_bundle_name')
+            SERVICE_VERSION=$(echo "$service_bundle" | jq -r '.release_bundle_version')
 
             # This is a key fix: strip '-service' from the bundle name to match the key in values.yaml
             SERVICE_KEY=$(echo "$SERVICE_BUNDLE_NAME" | sed 's/-service//')
@@ -46,12 +38,12 @@ jobs:
             echo "Processing microservice: $SERVICE_BUNDLE_NAME (key: $SERVICE_KEY) version $SERVICE_VERSION"
 
             # Get the contents of the microservice bundle to find the actual Docker images
-            SERVICE_CONTENTS=$(jfrog rt rbs $SERVICE_BUNDLE_NAME $SERVICE_VERSION --format=json)
+            SERVICE_CONTENTS=$(curl -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "${{ vars.JFROG_URL }}/lifecycle/api/v2/release_bundles/${SERVICE_BUNDLE_NAME}/${SERVICE_VERSION}?project=bookverse")
             echo "Service Contents: $SERVICE_CONTENTS"
 
             # Extract the frontend and backend image tags
-            FRONTEND_IMAGE=$(echo "${SERVICE_CONTENTS}" | jq -r '.artifacts[] | select(.path | contains("frontend")) | .path')
-            BACKEND_IMAGE=$(echo "${SERVICE_CONTENTS}" | jq -r '.artifacts[] | select(.path | contains("backend")) | .path')
+            FRONTEND_IMAGE=$(echo "${SERVICE_CONTENTS}" | jq -r '.source.artifacts[] | select(.path | contains("frontend")) | .path')
+            BACKEND_IMAGE=$(echo "${SERVICE_CONTENTS}" | jq -r '.source.artifacts[] | select(.path | contains("backend")) | .path')
 
             # The path includes the repo, so we need to add the registry URL
             REGISTRY_URL=$(echo "${{ vars.JFROG_URL }}" | sed 's|https://||')
