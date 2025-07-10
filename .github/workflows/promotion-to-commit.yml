@@ -1,8 +1,7 @@
 name: 'Promotion to Commit'
 on:
-  workflow_dispatch
-  #  repository_dispatch:
-#    types: [rlm_promotion]
+  repository_dispatch:
+    types: [rlm_promotion]
 jobs:
   update-gitops-repo:
     runs-on: ubuntu-latest
@@ -67,4 +66,4 @@ jobs:
           git config --global user.email 'actions@github.com'
           git add helm/bookverse/values.yaml
           git commit -m "Promoting ${{ env.BUNDLE_NAME }} ${{ env.BUNDLE_VERSION }} to production"
-#          git push
+          git push
