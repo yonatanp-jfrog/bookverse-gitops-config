@@ -14,7 +14,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq
           sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq
-
+# test
       - name: Get Promoted Bundle Info from Webhook
         id: get_info
         run: |
@@ -67,4 +67,3 @@ jobs:
           git add helm/bookverse/values.yaml
           git commit -m "Promoting ${{ env.BUNDLE_NAME }} ${{ env.BUNDLE_VERSION }} to production"
           git push
-          
