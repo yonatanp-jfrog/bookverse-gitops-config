@@ -54,4 +54,7 @@ spec:
       containers:
       - name: {{ $name }}-backend
         image: {{ $vals.backend.image }}
+        command: ["python", "backend.py"]
+        ports:
+        - containerPort: 5000        
 {{- end }}
