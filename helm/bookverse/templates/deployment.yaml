@@ -13,6 +13,8 @@ spec:
     metadata:
       labels:
         app: {{ $name }}-frontend
+      annotations:
+        rollme: {{ $.Values.restart_timestamp | quote }}
     spec:
       containers:
       - name: {{ $name }}-frontend
@@ -46,6 +48,8 @@ spec:
     metadata:
       labels:
         app: {{ $name }}-backend
+      annotations:
+        rollme: {{ $.Values.restart_timestamp | quote }}
     spec:
       containers:
       - name: {{ $name }}-backend

@@ -1,5 +1,7 @@
 # This file will be dynamically updated by the promotion-to-commit workflow.
 # The initial values are placeholders.
+restart_timestamp: ""
+
 services:
   inventory:
     port: 30001
