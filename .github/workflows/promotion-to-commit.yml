@@ -24,7 +24,7 @@ jobs:
       - name: Update Image Tags in values.yaml
         run: |
           # Use a direct API call to get the platform bundle contents
-          PLATFORM_BUNDLE_CONTENTS=$(curl -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "${{ vars.JFROG_URL }}/lifecycle/api/v2/release_bundles/${{ env.BUNDLE_NAME }}/${{ env.BUNDLE_VERSION }}?project=bookverse")
+          PLATFORM_BUNDLE_CONTENTS=$(curl -s -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "${{ vars.JFROG_URL }}/lifecycle/api/v2/release_bundle/records/${{ env.BUNDLE_NAME }}/${{ env.BUNDLE_VERSION }}?project=bookverse")
           echo "Platform Bundle Contents: $PLATFORM_BUNDLE_CONTENTS"
 
           # Loop through each source microservice bundle within the platform bundle
@@ -38,7 +38,7 @@ jobs:
             echo "Processing microservice: $SERVICE_BUNDLE_NAME (key: $SERVICE_KEY) version $SERVICE_VERSION"
 
             # Get the contents of the microservice bundle to find the actual Docker images
-            SERVICE_CONTENTS=$(curl -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "${{ vars.JFROG_URL }}/lifecycle/api/v2/release_bundles/${SERVICE_BUNDLE_NAME}/${SERVICE_VERSION}?project=bookverse")
+            SERVICE_CONTENTS=$(curl -s -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "${{ vars.JFROG_URL }}/lifecycle/api/v2/release_bundle/records/${SERVICE_BUNDLE_NAME}/${SERVICE_VERSION}?project=bookverse")
             echo "Service Contents: $SERVICE_CONTENTS"
 
             # Extract the frontend and backend image tags
@@ -67,4 +67,3 @@ jobs:
           git add helm/bookverse/values.yaml
           git commit -m "Promoting ${{ env.BUNDLE_NAME }} ${{ env.BUNDLE_VERSION }} to production"
           git push
-          
