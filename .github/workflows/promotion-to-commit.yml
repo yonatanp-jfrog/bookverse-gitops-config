@@ -67,3 +67,4 @@ jobs:
           git add helm/bookverse/values.yaml
           git commit -m "Promoting ${{ env.BUNDLE_NAME }} ${{ env.BUNDLE_VERSION }} to production"
           git push
+          
