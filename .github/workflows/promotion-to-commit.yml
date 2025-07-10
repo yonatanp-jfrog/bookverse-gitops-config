@@ -9,6 +9,12 @@ jobs:
       - name: Checkout GitOps Repo
         uses: actions/checkout@v3
 
+      - name: Install jq and yq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq
+
       - name: Setup JFrog CLI
         uses: jfrog/setup-jfrog-cli@v4
         env:
@@ -17,28 +23,51 @@ jobs:
           JF_ACCESS_TOKEN: ${{ secrets.JFROG_ACCESS_TOKEN }}
           JF_PROJECT: "bookverse"
 
-      - name: Extract Bundle Info from Webhook
+      - name: Get Promoted Bundle Info
         id: get_info
         run: |
           echo "BUNDLE_NAME=${{ github.event.client_payload.name }}" >> $GITHUB_ENV
           echo "BUNDLE_VERSION=${{ github.event.client_payload.version }}" >> $GITHUB_ENV
 
-      - name: Get Release Bundle Contents
-        id: get_contents
+      - name: Update Image Tags in values.yaml
         run: |
-          # Get the bundle contents and store it in a file
-          jfrog rt rbs ${{ env.BUNDLE_NAME }} ${{ env.BUNDLE_VERSION }} --format=json > bundle_contents.json
-          # Use 'jq' to parse the JSON and extract the image tags
-          # This is a more complex step that simulates a real-world promotion script
-          # For simplicity in this demo, we will assume a fixed structure and manually update the file in the demo script.
-          # In a real scenario, you would parse bundle_contents.json and update values.yaml accordingly.
-          echo "Image update logic would go here."
+          # Get the platform bundle contents to find the source microservice bundles
+          PLATFORM_BUNDLE_CONTENTS=$(jfrog rt rbs ${{ env.BUNDLE_NAME }} ${{ env.BUNDLE_VERSION }} --format=json)
+          echo "Platform Bundle Contents: $PLATFORM_BUNDLE_CONTENTS"
+
+          # Loop through each source microservice bundle within the platform bundle
+          for service_bundle in $(echo "${PLATFORM_BUNDLE_CONTENTS}" | jq -r '.source_release_bundles[]'); do
+            SERVICE_NAME=$(echo "$service_bundle" | jq -r '.name')
+            SERVICE_VERSION=$(echo "$service_bundle" | jq -r '.version')
+            echo "Processing microservice: $SERVICE_NAME version $SERVICE_VERSION"
+
+            # Get the contents of the microservice bundle to find the actual Docker images
+            SERVICE_CONTENTS=$(jfrog rt rbs $SERVICE_NAME $SERVICE_VERSION --format=json)
+            echo "Service Contents: $SERVICE_CONTENTS"
+
+            # Extract the frontend and backend image tags
+            FRONTEND_IMAGE=$(echo "${SERVICE_CONTENTS}" | jq -r '.artifacts[] | select(.path | contains("frontend")) | .path')
+            BACKEND_IMAGE=$(echo "${SERVICE_CONTENTS}" | jq -r '.artifacts[] | select(.path | contains("backend")) | .path')
+
+            # The path includes the repo, so we need to add the registry URL
+            REGISTRY_URL=$(echo "${{ vars.JFROG_URL }}" | sed 's|https://||')
+            FULL_FRONTEND_IMAGE="$REGISTRY_URL/$FRONTEND_IMAGE"
+            FULL_BACKEND_IMAGE="$REGISTRY_URL/$BACKEND_IMAGE"
+
+            echo "Updating frontend image for $SERVICE_NAME to $FULL_FRONTEND_IMAGE"
+            yq e -i ".services.$SERVICE_NAME.frontend.image = \"$FULL_FRONTEND_IMAGE\"" helm/bookverse/values.yaml
+
+            echo "Updating backend image for $SERVICE_NAME to $FULL_BACKEND_IMAGE"
+            yq e -i ".services.$SERVICE_NAME.backend.image = \"$FULL_BACKEND_IMAGE\"" helm/bookverse/values.yaml
+          done
+
+          echo "Final values.yaml content:"
+          cat helm/bookverse/values.yaml
 
       - name: Commit and Push Changes
         run: |
-          # This step will be updated in the live demo script to reflect a manual change for simplicity
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'actions@github.com'
-          # git add helm/bookverse/values.yaml
-          # git commit -m "Promoting ${{ env.BUNDLE_NAME }} ${{ env.BUNDLE_VERSION }} to production"
-          # git push
+          git add helm/bookverse/values.yaml
+          git commit -m "Promoting ${{ env.BUNDLE_NAME }} ${{ env.BUNDLE_VERSION }} to production"
+          git push
