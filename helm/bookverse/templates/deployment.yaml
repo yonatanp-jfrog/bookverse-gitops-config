@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: {{ $name }}-frontend
-        image: {{ $vals.image }} # Using placeholder image
+        image: {{ $vals.frontend.image }}
         ports:
         - containerPort: 80
 ---
@@ -32,4 +32,22 @@ spec:
   - port: 80
     targetPort: 80
     nodePort: {{ $vals.port }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ $name }}-backend
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}-backend
+    spec:
+      containers:
+      - name: {{ $name }}-backend
+        image: {{ $vals.backend.image }}
 {{- end }}

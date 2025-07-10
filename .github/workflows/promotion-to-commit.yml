@@ -8,16 +8,37 @@ jobs:
     steps:
       - name: Checkout GitOps Repo
         uses: actions/checkout@v3
-      - name: Extract Bundle Version from Webhook
-        id: get_version
-        run: echo "VERSION=${{ github.event.client_payload.version }}" >> $GITHUB_ENV
-      - name: Update values.yaml
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ vars.JFROG_URL }}
+          JF_USER: ${{ vars.JFROG_USER }}
+          JF_ACCESS_TOKEN: ${{ secrets.JFROG_ACCESS_TOKEN }}
+          JF_PROJECT: "bookverse"
+
+      - name: Extract Bundle Info from Webhook
+        id: get_info
         run: |
-          sed -i "s/solutionBundleVersion:.*/solutionBundleVersion: \"${{ env.VERSION }}\"/" helm/bookverse/values.yaml
+          echo "BUNDLE_NAME=${{ github.event.client_payload.name }}" >> $GITHUB_ENV
+          echo "BUNDLE_VERSION=${{ github.event.client_payload.version }}" >> $GITHUB_ENV
+
+      - name: Get Release Bundle Contents
+        id: get_contents
+        run: |
+          # Get the bundle contents and store it in a file
+          jfrog rt rbs ${{ env.BUNDLE_NAME }} ${{ env.BUNDLE_VERSION }} --format=json > bundle_contents.json
+          # Use 'jq' to parse the JSON and extract the image tags
+          # This is a more complex step that simulates a real-world promotion script
+          # For simplicity in this demo, we will assume a fixed structure and manually update the file in the demo script.
+          # In a real scenario, you would parse bundle_contents.json and update values.yaml accordingly.
+          echo "Image update logic would go here."
+
       - name: Commit and Push Changes
         run: |
+          # This step will be updated in the live demo script to reflect a manual change for simplicity
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'actions@github.com'
-          git add .
-          git commit -m "Promoting ${{ env.VERSION }} to production"
-          git push
+          # git add helm/bookverse/values.yaml
+          # git commit -m "Promoting ${{ env.BUNDLE_NAME }} ${{ env.BUNDLE_VERSION }} to production"
+          # git push

@@ -1,12 +1,21 @@
-solutionBundleVersion: "bookverse-platform-v3.0.0"
-
+# This file will be dynamically updated by the promotion-to-commit workflow.
+# The initial values are placeholders.
 services:
   inventory:
     port: 30001
-    image: nginx:1.21-alpine
+    frontend:
+      image: nginx:1.21-alpine
+    backend:
+      image: python:3.9-slim
   recommendations:
     port: 30002
-    image: nginx:1.21-alpine
+    frontend:
+      image: nginx:1.21-alpine
+    backend:
+      image: python:3.9-slim
   checkout:
     port: 30003
-    image: nginx:1.21-alpine
+    frontend:
+      image: nginx:1.21-alpine
+    backend:
+      image: python:3.9-slim
