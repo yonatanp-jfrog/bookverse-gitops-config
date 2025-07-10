@@ -2,6 +2,18 @@ name: 'Promotion to Commit'
 on:
   repository_dispatch:
     types: [rlm_promotion]
+  workflow_dispatch:
+    inputs:
+      bundle_name:
+        description: 'name of the bundle'
+        required: true
+        default: 'inventory-service'
+      bundle_ver:
+        description: 'bundle bersion'
+        required: true
+        default: '1.3.29'
+
+
 jobs:
   update-gitops-repo:
     runs-on: ubuntu-latest
@@ -20,8 +32,8 @@ jobs:
         run: |
           #echo "BUNDLE_NAME=${{ github.event.client_payload.name }}" >> $GITHUB_ENV
           #echo "BUNDLE_VERSION=${{ github.event.client_payload.version }}" >> $GITHUB_ENV
-          echo "BUNDLE_NAME=inventory-service" >> $GITHUB_ENV
-          echo "BUNDLE_VERSION=1.3.29" >> $GITHUB_ENV
+          echo "BUNDLE_NAME=${{ github.event.inputs.bundle_name }}" >> $GITHUB_ENV
+          echo "BUNDLE_VERSION=${{ github.event.inputs.bundle_ver }}" >> $GITHUB_ENV
 
       - name: Update Image Tags in values.yaml
         run: |
