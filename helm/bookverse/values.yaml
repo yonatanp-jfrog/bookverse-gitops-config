@@ -1,1 +1,12 @@
 solutionBundleVersion: "bookverse-platform-v3.0.0"
+
+services:
+  inventory:
+    port: 30001
+    image: nginx:1.21-alpine
+  recommendations:
+    port: 30002
+    image: nginx:1.21-alpine
+  checkout:
+    port: 30003
+    image: nginx:1.21-alpine
