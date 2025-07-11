@@ -3,9 +3,8 @@ on:
   workflow_dispatch:
     inputs:
       platform_version:
-        description: 'Platform Bundle Version (e.g., 4.0.0)'
-        required: true
-        default: '4.0.0'
+        description: 'Platform Bundle Version (e.g., 4.0.0). Optional: leave blank to auto-increment.'
+        required: false
   schedule:
     # Runs every other Monday at 05:00 UTC (8 AM IDT)
     - cron: '0 5 * * 1'
@@ -34,6 +33,32 @@ jobs:
           JF_USER: ${{ vars.JFROG_USER }}
           JF_ACCESS_TOKEN: ${{ secrets.JFROG_ACCESS_TOKEN }}
           JF_PROJECT: "bookverse"
+
+      - name: Determine Next Platform Version
+        id: determine_version
+        run: |
+          # If a version was manually provided, use it.
+          if [ -n "${{ github.event.inputs.platform_version }}" ]; then
+            echo "Using user-provided version: ${{ github.event.inputs.platform_version }}"
+            echo "platform_version=${{ github.event.inputs.platform_version }}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Otherwise, find the latest and increment the patch.
+          echo "Finding latest platform version to auto-increment..."
+          LATEST_PLATFORM_VERSION=$(curl -s -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "${{ vars.JFROG_URL }}/lifecycle/api/v2/release_bundle/records/bookverse-platform?project=bookverse&order_by=release_bundle_semver&direction=desc" | jq -r '.release_bundles[0].release_bundle_version')
+
+          if [[ "$LATEST_PLATFORM_VERSION" == "null" ]]; then
+            echo "No previous platform bundle found. Starting with 4.0.0."
+            NEXT_VERSION="4.0.0"
+          else
+            echo "Latest platform version is $LATEST_PLATFORM_VERSION"
+            # Use awk to increment the patch version
+            NEXT_VERSION=$(echo $LATEST_PLATFORM_VERSION | awk -F. -v OFS=. '{$NF++;print}')
+          fi
+
+          echo "Next platform version will be $NEXT_VERSION"
+          echo "platform_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
 
       - name: Find Latest Microservice Versions
         id: find_versions
@@ -66,8 +91,8 @@ jobs:
       - name: Create Platform Release Bundle
         env:
           SOURCES_JSON: ${{ steps.find_versions.outputs.sources_json }}
+          PLATFORM_VERSION: ${{ steps.determine_version.outputs.platform_version }}
         run: |
-          PLATFORM_VERSION=${{ github.event.inputs.platform_version || '4.0.0-scheduled' }}
           echo "Creating platform bundle version: $PLATFORM_VERSION"
 
           # Construct the JSON payload and pipe it directly to curl
