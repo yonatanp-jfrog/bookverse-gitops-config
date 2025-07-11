@@ -2,6 +2,7 @@
 # The initial values are placeholders.
 restart_timestamp: "1678886401"
 prod_docker_repo: "bookverse-docker-external-prod"
+
 services:
   inventory:
     port: 30001
