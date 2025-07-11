@@ -16,6 +16,9 @@ spec:
       annotations:
         rollme: {{ $.Values.restart_timestamp | quote }}
     spec:
+      # This tells the deployment to use our secret for pulling images
+      imagePullSecrets:
+      - name: jfrog-registry-creds
       containers:
       - name: {{ $name }}-frontend
         image: {{ $vals.frontend.image }}
@@ -51,6 +54,9 @@ spec:
       annotations:
         rollme: {{ $.Values.restart_timestamp | quote }}
     spec:
+      # This tells the deployment to use our secret for pulling images
+      imagePullSecrets:
+      - name: jfrog-registry-creds
       containers:
       - name: {{ $name }}-backend
         image: {{ $vals.backend.image }}
