@@ -23,27 +23,27 @@ jobs:
       - name: Promote to DEV
         run: |
           echo "Promoting bookverse-platform version ${{ github.event.inputs.version }} to DEV..."
-          jfrog rt rbp ${{ github.event.inputs.version }} bookverse-platform DEV \
+          jfrog rbp ${{ github.event.inputs.version }} bookverse-platform DEV \
             --project=bookverse \
             --include-repos='bookverse-docker-external'
 
       - name: Promote to QA
         run: |
           echo "Promoting bookverse-platform version ${{ github.event.inputs.version }} to QA..."
-          jfrog rt rbp ${{ github.event.inputs.version }} bookverse-platform QA \
+          jfrog rbp ${{ github.event.inputs.version }} bookverse-platform QA \
             --project=bookverse \
             --include-repos='bookverse-docker-external'
 
       - name: Promote to STAGE
         run: |
           echo "Promoting bookverse-platform version ${{ github.event.inputs.version }} to STAGE..."
-          jfrog rt rbp ${{ github.event.inputs.version }} bookverse-platform STAGE \
+          jfrog rbp ${{ github.event.inputs.version }} bookverse-platform STAGE \
             --project=bookverse \
             --include-repos='bookverse-docker-external'
 
       - name: Promote to PROD
         run: |
           echo "Promoting bookverse-platform version ${{ github.event.inputs.version }} to PROD..."
-          jfrog rt rbp ${{ github.event.inputs.version }} bookverse-platform PROD \
+          jfrog rbp ${{ github.event.inputs.version }} bookverse-platform PROD \
             --project=bookverse \
             --include-repos='bookverse-docker-external-prod'
