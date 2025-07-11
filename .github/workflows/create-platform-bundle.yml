@@ -53,7 +53,7 @@ jobs:
             fi
 
             echo "Latest version for $SERVICE is $LATEST_VERSION"
-            SOURCES_JSON+="{\"release_bundle_name\":\"$SERVICE\",\"release_bundle_version\":\"$LATEST_VERSION\"},"
+            SOURCES_JSON+="{\"project_key\":\"bookverse\",\"repository_key\":\"bookverse-release-bundles-v2\",\"release_bundle_name\":\"$SERVICE\",\"release_bundle_version\":\"$LATEST_VERSION\"},"
           done
 
           # Remove trailing comma and close the JSON array
@@ -80,8 +80,8 @@ jobs:
             '{
               "release_bundle_name": $name,
               "release_bundle_version": $version,
-              "source_type": "release_bundles",
-              "source": {
+              "sources": {
+                "source_type": "release_bundles",
                 "release_bundles": $sources
               }
             }' | curl -X POST -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" -H "Content-Type: application/json" \
