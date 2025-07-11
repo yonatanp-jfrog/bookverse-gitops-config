@@ -45,6 +45,7 @@ jobs:
           SERVICES=("inventory" "recommendations" "checkout")
           REGISTRY_URL=$(echo "${{ vars.JFROG_URL }}" | sed 's|https://||')
 
+
           for SERVICE_KEY in "${SERVICES[@]}"; do
             SERVICE_BUNDLE_NAME="$SERVICE_KEY-service"
             echo "Processing service: $SERVICE_KEY"
@@ -55,8 +56,12 @@ jobs:
             BACKEND_IMAGE_PATH=$(echo "${PLATFORM_BUNDLE_CONTENTS}" | jq -r --arg name "$SERVICE_BUNDLE_NAME-backend" '.artifacts[] | select(.package_name == $name and (.path | endswith("manifest.json"))) | .path')
 
             # The path from the API is like 'repo/image/tag/manifest.json'. We need to strip '/manifest.json'.
-            FULL_FRONTEND_IMAGE="$REGISTRY_URL/$(echo $FRONTEND_IMAGE_PATH | sed 's|/manifest.json||')"
-            FULL_BACKEND_IMAGE="$REGISTRY_URL/$(echo $BACKEND_IMAGE_PATH | sed 's|/manifest.json||')"
+            # AND we need to replace the dev repo with the prod repo.
+            PROD_FRONTEND_IMAGE_PATH=$(echo $FRONTEND_IMAGE_PATH | sed 's|/manifest.json||' | sed 's|bookverse-docker-dev|bookverse-docker-prod|')
+            PROD_BACKEND_IMAGE_PATH=$(echo $BACKEND_IMAGE_PATH | sed 's|/manifest.json||' | sed 's|bookverse-docker-dev|bookverse-docker-prod|')
+
+            FULL_FRONTEND_IMAGE="$REGISTRY_URL/$PROD_FRONTEND_IMAGE_PATH"
+            FULL_BACKEND_IMAGE="$REGISTRY_URL/$PROD_BACKEND_IMAGE_PATH"
 
             echo "Updating frontend image for $SERVICE_KEY to $FULL_FRONTEND_IMAGE"
             yq e -i ".services.$SERVICE_KEY.frontend.image = \"$FULL_FRONTEND_IMAGE\"" helm/bookverse/values.yaml
