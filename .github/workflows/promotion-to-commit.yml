@@ -50,14 +50,20 @@ jobs:
             SERVICE_BUNDLE_NAME="$SERVICE_KEY-service"
             echo "Processing service: $SERVICE_KEY"
 
-            # Extract the frontend and backend image paths from the flat artifact list
-            # We look for the manifest.json to get the correct image path and tag
-            FRONTEND_IMAGE_PATH=$(echo "${PLATFORM_BUNDLE_CONTENTS}" | jq -r --arg name "$SERVICE_BUNDLE_NAME-frontend" '.artifacts[] | select(.package_name == $name and (.path | endswith("manifest.json"))) | .path')
-            BACKEND_IMAGE_PATH=$(echo "${PLATFORM_BUNDLE_CONTENTS}" | jq -r --arg name "$SERVICE_BUNDLE_NAME-backend" '.artifacts[] | select(.package_name == $name and (.path | endswith("manifest.json"))) | .path')
+            # Extract the frontend artifact object
+            FRONTEND_ARTIFACT=$(echo "${PLATFORM_BUNDLE_CONTENTS}" | jq -c --arg name "$SERVICE_BUNDLE_NAME-frontend" '.artifacts[] | select(.package_name == $name and (.path | endswith("manifest.json")))')
+            # Extract the backend artifact object
+            BACKEND_ARTIFACT=$(echo "${PLATFORM_BUNDLE_CONTENTS}" | jq -c --arg name "$SERVICE_BUNDLE_NAME-backend" '.artifacts[] | select(.package_name == $name and (.path | endswith("manifest.json")))')
 
-            # The path from the API is like 'image/tag/manifest.json'. We need to strip '/manifest.json'.
-            FULL_FRONTEND_IMAGE="$REGISTRY_URL/$PROD_REPO/$(echo $FRONTEND_IMAGE_PATH | sed 's|/manifest.json||')"
-            FULL_BACKEND_IMAGE="$REGISTRY_URL/$PROD_REPO/$(echo $BACKEND_IMAGE_PATH | sed 's|/manifest.json||')"
+            # Extract package name and version for each
+            FRONTEND_PKG_NAME=$(echo "$FRONTEND_ARTIFACT" | jq -r '.package_name')
+            FRONTEND_PKG_VERSION=$(echo "$FRONTEND_ARTIFACT" | jq -r '.package_version')
+            BACKEND_PKG_NAME=$(echo "$BACKEND_ARTIFACT" | jq -r '.package_name')
+            BACKEND_PKG_VERSION=$(echo "$BACKEND_ARTIFACT" | jq -r '.package_version')
+
+            # Construct the full, correct image tag
+            FULL_FRONTEND_IMAGE="$REGISTRY_URL/$PROD_REPO/$FRONTEND_PKG_NAME:$FRONTEND_PKG_VERSION"
+            FULL_BACKEND_IMAGE="$REGISTRY_URL/$PROD_REPO/$BACKEND_PKG_NAME:$BACKEND_PKG_VERSION"
 
             echo "Updating frontend image for $SERVICE_KEY to $FULL_FRONTEND_IMAGE"
             yq e -i ".services.$SERVICE_KEY.frontend.image = \"$FULL_FRONTEND_IMAGE\"" helm/bookverse/values.yaml
