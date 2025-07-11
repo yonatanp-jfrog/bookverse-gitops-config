@@ -2,17 +2,6 @@ name: 'Promotion to Commit'
 on:
   repository_dispatch:
     types: [rlm_promotion]
-  workflow_dispatch:
-    inputs:
-      bundle_name:
-        description: 'name of the bundle'
-        required: true
-        default: 'bookverse-platform'
-      bundle_ver:
-        description: 'bundle bersion'
-        required: true
-        default: '1.0.'
-
 jobs:
   update-gitops-repo:
     runs-on: ubuntu-latest
@@ -29,10 +18,8 @@ jobs:
       - name: Get Promoted Bundle Info from Webhook
         id: get_info
         run: |
-          #echo "BUNDLE_NAME=${{ github.event.client_payload.name }}" >> $GITHUB_ENV
-          #echo "BUNDLE_VERSION=${{ github.event.client_payload.version }}" >> $GITHUB_ENV
-          echo "BUNDLE_NAME=${{ github.event.inputs.bundle_name }}" >> $GITHUB_ENV
-          echo "BUNDLE_VERSION=${{ github.event.inputs.bundle_ver }}" >> $GITHUB_ENV
+          echo "BUNDLE_NAME=${{ github.event.client_payload.name }}" >> $GITHUB_ENV
+          echo "BUNDLE_VERSION=${{ github.event.client_payload.version }}" >> $GITHUB_ENV
 
       - name: Update Image Tags in values.yaml
         run: |
@@ -40,28 +27,22 @@ jobs:
           PLATFORM_BUNDLE_CONTENTS=$(curl -s -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "${{ vars.JFROG_URL }}/lifecycle/api/v2/release_bundle/records/${{ env.BUNDLE_NAME }}/${{ env.BUNDLE_VERSION }}?project=bookverse")
           echo "Platform Bundle Contents: $PLATFORM_BUNDLE_CONTENTS"
 
-          # Loop through each source microservice bundle within the platform bundle
-          for service_bundle in $(echo "${PLATFORM_BUNDLE_CONTENTS}" | jq -r '.source.release_bundles[]'); do
-            SERVICE_BUNDLE_NAME=$(echo "$service_bundle" | jq -r '.release_bundle_name')
-            SERVICE_VERSION=$(echo "$service_bundle" | jq -r '.release_bundle_version')
+          # Define the services we need to find images for
+          SERVICES=("inventory" "recommendations" "checkout")
+          REGISTRY_URL=$(echo "${{ vars.JFROG_URL }}" | sed 's|https://||')
 
-            # This is a key fix: strip '-service' from the bundle name to match the key in values.yaml
-            SERVICE_KEY=$(echo "$SERVICE_BUNDLE_NAME" | sed 's/-service//')
+          for SERVICE_KEY in "${SERVICES[@]}"; do
+            SERVICE_BUNDLE_NAME="$SERVICE_KEY-service"
+            echo "Processing service: $SERVICE_KEY"
 
-            echo "Processing microservice: $SERVICE_BUNDLE_NAME (key: $SERVICE_KEY) version $SERVICE_VERSION"
+            # Extract the frontend and backend image paths from the flat artifact list
+            # We look for the manifest.json to get the correct image path and tag
+            FRONTEND_IMAGE_PATH=$(echo "${PLATFORM_BUNDLE_CONTENTS}" | jq -r --arg name "$SERVICE_BUNDLE_NAME-frontend" '.source.artifacts[] | select(.package_name == $name and (.path | endswith("manifest.json"))) | .path')
+            BACKEND_IMAGE_PATH=$(echo "${PLATFORM_BUNDLE_CONTENTS}" | jq -r --arg name "$SERVICE_BUNDLE_NAME-backend" '.source.artifacts[] | select(.package_name == $name and (.path | endswith("manifest.json"))) | .path')
 
-            # Get the contents of the microservice bundle to find the actual Docker images
-            SERVICE_CONTENTS=$(curl -s -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "${{ vars.JFROG_URL }}/lifecycle/api/v2/release_bundle/records/${SERVICE_BUNDLE_NAME}/${SERVICE_VERSION}?project=bookverse")
-            echo "Service Contents: $SERVICE_CONTENTS"
-
-            # Extract the frontend and backend image tags
-            FRONTEND_IMAGE=$(echo "${SERVICE_CONTENTS}" | jq -r '.source.artifacts[] | select(.path | contains("frontend")) | .path')
-            BACKEND_IMAGE=$(echo "${SERVICE_CONTENTS}" | jq -r '.source.artifacts[] | select(.path | contains("backend")) | .path')
-
-            # The path includes the repo, so we need to add the registry URL
-            REGISTRY_URL=$(echo "${{ vars.JFROG_URL }}" | sed 's|https://||')
-            FULL_FRONTEND_IMAGE="$REGISTRY_URL/$FRONTEND_IMAGE"
-            FULL_BACKEND_IMAGE="$REGISTRY_URL/$BACKEND_IMAGE"
+            # The path from the API is like 'repo/image/tag/manifest.json'. We need to strip '/manifest.json'.
+            FULL_FRONTEND_IMAGE="$REGISTRY_URL/$(echo $FRONTEND_IMAGE_PATH | sed 's|/manifest.json||')"
+            FULL_BACKEND_IMAGE="$REGISTRY_URL/$(echo $BACKEND_IMAGE_PATH | sed 's|/manifest.json||')"
 
             echo "Updating frontend image for $SERVICE_KEY to $FULL_FRONTEND_IMAGE"
             yq e -i ".services.$SERVICE_KEY.frontend.image = \"$FULL_FRONTEND_IMAGE\"" helm/bookverse/values.yaml
