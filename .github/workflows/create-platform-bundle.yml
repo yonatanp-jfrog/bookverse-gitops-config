@@ -53,7 +53,7 @@ jobs:
             fi
 
             echo "Latest version for $SERVICE is $LATEST_VERSION"
-            SOURCES_JSON+="{\"project_key\":\"${{ vars.JF_PROJECT }}\",\"release_bundle_name\":\"$SERVICE\",\"release_bundle_version\":\"$LATEST_VERSION\"},"
+            SOURCES_JSON+="{\"repository_key\":\"${{ vars.JF_PROJECT }}-release-bundles-v2\",\"release_bundle_name\":\"$SERVICE\",\"release_bundle_version\":\"$LATEST_VERSION\"},"
           done
 
           # Remove trailing comma and close the JSON array
