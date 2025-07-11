@@ -1,4 +1,5 @@
 name: 'Create Platform Release Bundle'
+
 on:
   workflow_dispatch:
     inputs:
