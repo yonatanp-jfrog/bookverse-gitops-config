@@ -64,6 +64,8 @@ jobs:
           echo "sources_json=$SOURCES_JSON" >> $GITHUB_OUTPUT
 
       - name: Create Platform Release Bundle
+        env:
+          SOURCES_JSON: ${{ steps.find_versions.outputs.sources_json }}
         run: |
           # Use the user-provided version for manual runs, or generate one for scheduled runs
           PLATFORM_VERSION=${{ github.event.inputs.platform_version || '4.0.0-scheduled' }}
@@ -74,7 +76,7 @@ jobs:
           jq -n \
             --arg name "bookverse-platform" \
             --arg version "$PLATFORM_VERSION" \
-            --argjson sources "${{ steps.find_versions.outputs.sources_json }}" \
+            --argjson sources "$SOURCES_JSON" \
             '{
               "release_bundle_name": $name,
               "release_bundle_version": $version,
