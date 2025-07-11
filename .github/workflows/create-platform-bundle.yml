@@ -68,4 +68,24 @@ jobs:
           # Use the user-provided version for manual runs, or generate one for scheduled runs
           PLATFORM_VERSION=${{ github.event.inputs.platform_version || '4.0.0-scheduled' }}
           echo "Creating platform bundle version: $PLATFORM_VERSION"
-          jfrog rbc bookverse-platform $PLATFORM_VERSION --sources='${{ steps.find_versions.outputs.sources_json }}'
+#          jfrog rbc bookverse-platform $PLATFORM_VERSION --sources='${{ steps.find_versions.outputs.sources_json }}'
+
+          # Construct the JSON payload for the API call
+          JSON_PAYLOAD=$(cat <<EOF
+          {
+            "release_bundle_name": "bookverse-platform",
+            "release_bundle_version": "$PLATFORM_VERSION",
+            "source_type": "release_bundles",
+            "source": {
+              "release_bundles": ${{ steps.find_versions.outputs.sources_json }}
+            }
+          }
+          EOF
+          )
+
+          echo "API Payload: $JSON_PAYLOAD"
+
+          # Use a direct API call to create the release bundle
+          curl -X POST -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" -H "Content-Type: application/json" \
+          --data "$JSON_PAYLOAD" \
+          "${{ vars.JFROG_URL }}/lifecycle/api/v2/release_bundle?project=bookverse"
