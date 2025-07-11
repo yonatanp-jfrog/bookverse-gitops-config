@@ -12,7 +12,8 @@ on:
         description: 'bundle bersion'
         required: true
         default: '1.0.'
-
+permissions:
+  contents: write
 jobs:
   update-gitops-repo:
     runs-on: ubuntu-latest
