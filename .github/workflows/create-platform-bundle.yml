@@ -74,7 +74,7 @@ jobs:
           jq -n \
             --arg name "bookverse-platform" \
             --arg version "$PLATFORM_VERSION" \
-            --argjson sources '${{ steps.find_versions.outputs.sources_json }}' \
+            --argjson sources "${{ steps.find_versions.outputs.sources_json }}" \
             '{
               "release_bundle_name": $name,
               "release_bundle_version": $version,
