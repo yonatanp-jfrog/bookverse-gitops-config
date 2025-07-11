@@ -3,9 +3,9 @@ on:
   workflow_dispatch:
     inputs:
       platform_version:
-        description: 'Platform Bundle Version (e.g., 1.0.0)'
+        description: 'Platform Bundle Version (e.g., 4.0.0)'
         required: true
-        default: '1.0.0'
+        default: '4.0.0'
   schedule:
     # Runs every other Monday at 05:00 UTC (8 AM IDT)
     - cron: '0 5 * * 1'
@@ -53,7 +53,7 @@ jobs:
             fi
 
             echo "Latest version for $SERVICE is $LATEST_VERSION"
-            SOURCES_JSON+="{\"project_key\":\"bookverse\",\"repository_key\":\"bookverse-release-bundles-v2\",\"release_bundle_name\":\"$SERVICE\",\"release_bundle_version\":\"$LATEST_VERSION\"},"
+            SOURCES_JSON+="{\"project_key\":\"${{ vars.JF_PROJECT }}\",\"release_bundle_name\":\"$SERVICE\",\"release_bundle_version\":\"$LATEST_VERSION\"},"
           done
 
           # Remove trailing comma and close the JSON array
@@ -67,10 +67,8 @@ jobs:
         env:
           SOURCES_JSON: ${{ steps.find_versions.outputs.sources_json }}
         run: |
-          # Use the user-provided version for manual runs, or generate one for scheduled runs
           PLATFORM_VERSION=${{ github.event.inputs.platform_version || '4.0.0-scheduled' }}
           echo "Creating platform bundle version: $PLATFORM_VERSION"
-          # jfrog rbc bookverse-platform $PLATFORM_VERSION --sources='${{ steps.find_versions.outputs.sources_json }}'
 
           # Construct the JSON payload and pipe it directly to curl
           jq -n \
@@ -80,10 +78,12 @@ jobs:
             '{
               "release_bundle_name": $name,
               "release_bundle_version": $version,
-              "sources": {
-                "source_type": "release_bundles",
-                "release_bundles": $sources
-              }
+              "sources": [
+                {
+                  "source_type": "release_bundles",
+                  "release_bundles": $sources
+                }
+              ]
             }' | curl -X POST -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" -H "Content-Type: application/json" \
             --data @- \
             "${{ vars.JFROG_URL }}/lifecycle/api/v2/release_bundle?project=bookverse"
