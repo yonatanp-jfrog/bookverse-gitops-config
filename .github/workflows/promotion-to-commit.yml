@@ -2,6 +2,17 @@ name: 'Promotion to Commit'
 on:
   repository_dispatch:
     types: [rlm_promotion]
+  workflow_dispatch:
+    inputs:
+      bundle_name:
+        description: 'name of the bundle'
+        required: true
+        default: 'bookverse-platform'
+      bundle_ver:
+        description: 'bundle bersion'
+        required: true
+        default: '1.0.'
+   
 jobs:
   update-gitops-repo:
     runs-on: ubuntu-latest
