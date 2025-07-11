@@ -13,7 +13,6 @@ on:
         required: true
         default: '1.3.29'
 
-
 jobs:
   update-gitops-repo:
     runs-on: ubuntu-latest
@@ -40,11 +39,6 @@ jobs:
           # Use a direct API call to get the platform bundle contents
           PLATFORM_BUNDLE_CONTENTS=$(curl -s -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "${{ vars.JFROG_URL }}/lifecycle/api/v2/release_bundle/records/${{ env.BUNDLE_NAME }}/${{ env.BUNDLE_VERSION }}?project=bookverse")
           echo "Platform Bundle Contents: $PLATFORM_BUNDLE_CONTENTS"
-
-          echo "--- DEBUG: Platform Bundle API Response ---"
-          echo "$PLATFORM_BUNDLE_CONTENTS"
-          echo "-------------------------------------------"
-
 
           # Loop through each source microservice bundle within the platform bundle
           for service_bundle in $(echo "${PLATFORM_BUNDLE_CONTENTS}" | jq -r '.source.release_bundles[]'); do

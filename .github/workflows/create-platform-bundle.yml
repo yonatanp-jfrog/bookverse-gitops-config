@@ -1,0 +1,71 @@
+name: 'Create Platform Release Bundle'
+on:
+  workflow_dispatch:
+    inputs:
+      platform_version:
+        description: 'Platform Bundle Version (e.g., 4.0.0)'
+        required: true
+        default: '4.0.0'
+  schedule:
+    # Runs every other Monday at 05:00 UTC (8 AM IDT)
+    - cron: '0 5 * * 1'
+
+jobs:
+  create-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if it is an even week to run
+        if: github.event_name == 'schedule'
+        run: |
+          # Run only on even-numbered weeks of the year
+          if (( $(date +%U) % 2 != 0 )); then
+            echo "Skipping run on odd-numbered week: $(date +%U)"
+            exit 78
+          fi
+          echo "Running on even-numbered week: $(date +%U)"
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ vars.JFROG_URL }}
+          JF_USER: ${{ vars.JFROG_USER }}
+          JF_ACCESS_TOKEN: ${{ secrets.JFROG_ACCESS_TOKEN }}
+          JF_PROJECT: "bookverse"
+
+      - name: Find Latest Microservice Versions
+        id: find_versions
+        run: |
+          # Define the services that make up our platform
+          SERVICES=("inventory-service" "recommendations-service" "checkout-service")
+          SOURCES_JSON="["
+
+          for SERVICE in "${SERVICES[@]}"; do
+            echo "Finding latest version for $SERVICE..."
+            # Use the API to get all versions for a bundle, then use jq to get the last one
+            LATEST_VERSION=$(curl -s -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "${{ vars.JFROG_URL }}/lifecycle/api/v2/release_bundle/records/${SERVICE}?project=bookverse" | jq -r '.versions[-1].version')
+
+            if [[ "$LATEST_VERSION" == "null" ]]; then
+              echo "::error::Could not find any release bundles for $SERVICE. Please ensure at least one has been created."
+              exit 1
+            fi
+
+            echo "Latest version for $SERVICE is $LATEST_VERSION"
+            SOURCES_JSON+="{\"name\":\"$SERVICE\",\"version\":\"$LATEST_VERSION\"},"
+          done
+
+          # Remove trailing comma and close the JSON array
+          SOURCES_JSON=$(echo $SOURCES_JSON | sed 's/,$//')
+          SOURCES_JSON+="]"
+
+          echo "Constructed sources: $SOURCES_JSON"
+          echo "sources_json=$SOURCES_JSON" >> $GITHUB_OUTPUT
+
+      - name: Create Platform Release Bundle
+        run: |
+          # Use the user-provided version for manual runs, or generate one for scheduled runs
+          PLATFORM_VERSION=${{ github.event.inputs.platform_version || '4.0.0-scheduled' }}
+          echo "Creating platform bundle version: $PLATFORM_VERSION"
+          jfrog rbc bookverse-platform $PLATFORM_VERSION --sources='${{ steps.find_versions.outputs.sources_json }}'
