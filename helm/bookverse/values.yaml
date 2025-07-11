@@ -1,6 +1,8 @@
 # This file will be dynamically updated by the promotion-to-commit workflow.
 # The initial values are placeholders.
 restart_timestamp: "1678886401"
+prod_docker_repo: "bookverse-docker-external"
+
 services:
   inventory:
     port: 30001
