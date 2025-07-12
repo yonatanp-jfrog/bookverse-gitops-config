@@ -14,7 +14,7 @@ on:
         default: '1.0.'
 permissions:
   contents: write
-run-name: Release Version ${{ github.event.client_payload.name }} v${{ github.event.client_payload.version }} to Kuberentes
+run-name: Release Version ${{ github.event.inputs.bundle_name }} v${{ github.event.inputs.bundle_ver }} to Kuberentes
 
 jobs:
   update-gitops-repo:
