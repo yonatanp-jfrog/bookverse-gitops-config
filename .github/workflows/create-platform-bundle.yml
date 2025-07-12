@@ -1,4 +1,4 @@
-name: 'Create Platform Release Bundle'
+name: 'Create Platform Bundle'
 
 on:
   workflow_dispatch:

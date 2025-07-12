@@ -1,4 +1,4 @@
-name: 'Promote Platform Release to PROD'
+name: 'Promote Platform Bundle to PROD'
 
 on:
   workflow_dispatch:
