@@ -6,9 +6,9 @@ services:
   inventory:
     port: 30001
     frontend:
-      image: productdemo.jfrog.io/bookverse-docker-external-prod/inventory-service-frontend:1.3.46
+      image: productdemo.jfrog.io/bookverse-docker-external-prod/inventory-service-frontend:1.3.47
     backend:
-      image: productdemo.jfrog.io/bookverse-docker-external-prod/inventory-service-backend:1.3.46
+      image: productdemo.jfrog.io/bookverse-docker-external-prod/inventory-service-backend:1.3.47
   recommendations:
     port: 30002
     frontend:
