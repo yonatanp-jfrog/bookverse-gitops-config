@@ -6,18 +6,18 @@ services:
   inventory:
     port: 30001
     frontend:
-      image: productdemo.jfrog.io/bookverse-docker-external-prod/inventory-service-frontend:1.3.38
+      image: productdemo.jfrog.io/bookverse-docker-external-prod/inventory-service-frontend:1.3.39
     backend:
-      image: productdemo.jfrog.io/bookverse-docker-external-prod/inventory-service-backend:1.3.38
+      image: productdemo.jfrog.io/bookverse-docker-external-prod/inventory-service-backend:1.3.39
   recommendations:
     port: 30002
     frontend:
-      image: productdemo.jfrog.io/bookverse-docker-external-prod/recommendations-service-frontend:1.3.6
+      image: productdemo.jfrog.io/bookverse-docker-external-prod/recommendations-service-frontend:1.3.7
     backend:
-      image: productdemo.jfrog.io/bookverse-docker-external-prod/recommendations-service-backend:1.3.6
+      image: productdemo.jfrog.io/bookverse-docker-external-prod/recommendations-service-backend:1.3.7
   checkout:
     port: 30003
     frontend:
-      image: productdemo.jfrog.io/bookverse-docker-external-prod/checkout-service-frontend:1.3.9
+      image: productdemo.jfrog.io/bookverse-docker-external-prod/checkout-service-frontend:1.3.11
     backend:
-      image: productdemo.jfrog.io/bookverse-docker-external-prod/checkout-service-backend:1.3.9
+      image: productdemo.jfrog.io/bookverse-docker-external-prod/checkout-service-backend:1.3.11
