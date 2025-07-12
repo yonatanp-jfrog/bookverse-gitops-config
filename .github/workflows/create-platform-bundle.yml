@@ -9,6 +9,7 @@ on:
   schedule:
     # Runs every other Monday at 05:00 UTC (8 AM IDT)
     - cron: '0 5 * * 1'
+run-name: Create Platform Bundle v${{ github.event.inputs.platform_version || 'auto-increment' }}
 
 jobs:
   create-bundle:
