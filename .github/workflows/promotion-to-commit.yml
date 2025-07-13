@@ -14,7 +14,8 @@ on:
         default: '1.0.'
 permissions:
   contents: write
-run-name: Release Version ${{ github.event.inputs.bundle_name }} v${{ github.event.inputs.bundle_ver }} to Kuberentes
+run-name: Release Version ${{ github.event.client_payload.name || github.event.inputs.bundle_name }} v${{ github.event.client_payload.version || github.event.inputs.bundle_ver }} to Kuberentes
+
 
 jobs:
   update-gitops-repo:
@@ -29,13 +30,22 @@ jobs:
           sudo apt-get install -y jq
           sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq
 
-      - name: Get Promoted Bundle Info from Webhook
+      - name: Set Bundle Info and Verify Name
         id: get_info
         run: |
-          echo "BUNDLE_NAME=${{ github.event.client_payload.name }}" >> $GITHUB_ENV
-          echo "BUNDLE_VERSION=${{ github.event.client_payload.version }}" >> $GITHUB_ENV
-          #echo "BUNDLE_NAME=${{ github.event.inputs.bundle_name }}" >> $GITHUB_ENV
-          #echo "BUNDLE_VERSION=${{ github.event.inputs.bundle_ver }}" >> $GITHUB_ENV
+          if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+            echo "BUNDLE_NAME=${{ github.event.client_payload.name }}" >> $GITHUB_ENV
+            echo "BUNDLE_VERSION=${{ github.event.client_payload.version }}" >> $GITHUB_ENV
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "BUNDLE_NAME=${{ github.event.inputs.bundle_name }}" >> $GITHUB_ENV
+            echo "BUNDLE_VERSION=${{ github.event.inputs.bundle_ver }}" >> $GITHUB_ENV
+          fi
+
+      - name: "Conditional Execution: only run for 'bookverse-platform'"
+        if: ${{ env.BUNDLE_NAME }} != 'bookverse-platform'
+        run: |
+          echo "Skipping execution because the bundle name is not 'bookverse-platform'."
+          exit 78
 
       - name: Update Image Tags in values.yaml
         run: |
