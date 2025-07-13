@@ -126,5 +126,5 @@ jobs:
 
           jf evd create --predicate build-link-evidence.json \
           --predicate-type "Build Link" \
-          --release-bundle bookverse-platform --release-bundle-version ${{ steps.determine_version.outputs.platform_version }} \
+          --release-bundle bookverse-platform --release-bundle-version 1.0.24 \
           --project bookverse --key-alias "bookverse_key" --key "${{ secrets.BOOKVERSE_KEY }}"
