@@ -45,7 +45,7 @@ jobs:
           jf evd create --predicate commit-review.json \
           --predicate-type "Attribute Report" \
           --release-bundle bookverse-platform --release-bundle-version ${{ github.event.inputs.version }} \
-          --project bookverse --key "${{ secrets.BOOKVERSE_KEY }}"
+          --project bookverse --key-alias "bookverse_key" --key "${{ secrets.BOOKVERSE_KEY }}"
 
       - name: Promote to DEV
         run: |
@@ -87,7 +87,7 @@ jobs:
           jf evd create --predicate dev-smoke-test.json \
           --predicate-type "Test Results" \
           --release-bundle ookverse-platform --release-bundle-version ${{ github.event.inputs.version }} \
-          --project bookverse --key "${{ secrets.BOOKVERSE_KEY }}"
+          --project bookverse --key-alias "bookverse_key" --key "${{ secrets.BOOKVERSE_KEY }}"
 
       - name: Promote to QA
         run: |
@@ -139,12 +139,12 @@ jobs:
           jf evd create --predicate qa-test-results.json \
           --predicate-type "Test Results" \
           --release-bundle bookverse-platform --release-bundle-version ${{ github.event.inputs.version }} \
-          --project bookverse --key "${{ secrets.BOOKVERSE_KEY }}"
+          --project bookverse --key-alias "bookverse_key" --key "${{ secrets.BOOKVERSE_KEY }}"
 
           jf evd create --predicate qa-jira-issues.json \
           --predicate-type "Attribute Report" \
           --release-bundle bookverse-platform --release-bundle-version ${{ github.event.inputs.version }} \
-          --project bookverse --key "${{ secrets.BOOKVERSE_KEY }}"
+          --project bookverse --key-alias "bookverse_key" --key "${{ secrets.BOOKVERSE_KEY }}"
 
       - name: Create and Attach STAGE Sign-off & Trace Evidence (Gate to PROD)
         run: |
@@ -175,12 +175,12 @@ jobs:
           jf evd create --predicate stage-signoff.json \
           --predicate-type "Attribute Rport" \
           --release-bundle bookverse-platform --release-bundle-version ${{ github.event.inputs.version }} \
-          --project bookverse --key "${{ secrets.BOOKVERSE_KEY }}"
+          --project bookverse --key-alias "bookverse_key" --key "${{ secrets.BOOKVERSE_KEY }}"
 
           jf evd create --predicate stage-runtime-trace.json \
           --predicate-type "Runtime Trace" \
           --release-bundle bookverse-platform --release-bundle-version ${{ github.event.inputs.version }} \
-          --project bookverse --key "${{ secrets.BOOKVERSE_KEY }}"
+          --project bookverse --key-alias "bookverse_key" --key "${{ secrets.BOOKVERSE_KEY }}"
 
       - name: Promote to STAGE
         run: |
