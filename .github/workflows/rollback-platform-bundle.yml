@@ -1,0 +1,75 @@
+name: 'Rollback Platform Bundle'
+
+on:
+  workflow_dispatch:
+    inputs:
+      bundle_version:
+        description: 'The version of the bookverse-platform release bundle to roll back (e.g., 4.0.1)'
+        required: true
+
+run-name: Rollback bookverse-platform v${{ github.event.inputs.bundle_version }}
+
+jobs:
+  rollback-and-promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ vars.JFROG_URL }}
+          JF_USER: ${{ vars.JFROG_USER }}
+          JF_ACCESS_TOKEN: ${{ secrets.JFROG_ACCESS_TOKEN }}
+
+      - name: Get All Platform Versions
+        id: get_versions
+        run: |
+          ALL_VERSIONS_JSON=$(curl -s -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "${{ vars.JFROG_URL }}/lifecycle/api/v2/release_bundle/records/bookverse-platform?project=bookverse&order_by=release_bundle_semver&direction=desc")
+          echo "versions_json=$ALL_VERSIONS_JSON" >> $GITHUB_OUTPUT
+
+      - name: Perform Rollback
+        id: rollback
+        env:
+          ALL_VERSIONS: ${{ steps.get_versions.outputs.versions_json }}
+          ROLLBACK_VERSION: ${{ github.event.inputs.bundle_version }}
+        run: |
+          LATEST_VERSION=$(echo "$ALL_VERSIONS" | jq -r '.release_bundles[0].release_bundle_version')
+
+          if [ "$LATEST_VERSION" != "$ROLLBACK_VERSION" ]; then
+            echo "::error::Rollback is only supported for the 'latest' version. The latest version is $LATEST_VERSION."
+            exit 1
+          fi
+
+          echo "Rolling back version $ROLLBACK_VERSION..."
+          ROLLBACK_API_URL="${{ vars.JFROG_URL }}/lifecycle/api/v2/promotion/rollback/bookverse-platform/$ROLLBACK_VERSION?project=bookverse&async=false"
+          
+          curl -X POST -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "$ROLLBACK_API_URL"
+
+          # Determine the new latest version to promote
+          NEW_LATEST_VERSION=$(echo "$ALL_VERSIONS" | jq -r '.release_bundles[1].release_bundle_version')
+          
+          if [ "$NEW_LATEST_VERSION" == "null" ]; then
+            echo "No previous version available to become the new 'latest'."
+            echo "new_latest_exists=false" >> $GITHUB_OUTPUT
+          else
+            echo "The new latest version is $NEW_LATEST_VERSION."
+            echo "new_latest_exists=true" >> $GITHUB_OUTPUT
+            echo "new_latest_version=$NEW_LATEST_VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Trigger Cluster Update with New Latest Version
+        if: steps.rollback.outputs.new_latest_exists == 'true'
+        env:
+          NEW_LATEST: ${{ steps.rollback.outputs.new_latest_version }}
+        run: |
+          echo "Triggering promotion-to-commit workflow for new latest version: $NEW_LATEST"
+          gh workflow run promotion-to-commit.yml -f bundle_name=bookverse-platform -f bundle_ver=$NEW_LATEST
+        
+      - name: Quarantine Rolled-Back Version
+        env:
+          ROLLED_BACK_VERSION: ${{ github.event.inputs.bundle_version }}
+        run: |
+          echo "Promoting rolled-back version $ROLLED_BACK_VERSION to bookverse-Quarantine..."
+          jfrog rbp bookverse-platform $ROLLED_BACK_VERSION bookverse-Quarantine --project=bookverse
