@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Setup JFrog CLI
         uses: jfrog/setup-jfrog-cli@v4
+        with:
+          version: latest
         env:
           JF_URL: ${{ vars.JFROG_URL }}
           JF_USER: ${{ vars.JFROG_USER }}
@@ -197,3 +199,53 @@ jobs:
             --project=bookverse \
             --include-repos='bookverse-docker-external-prod' \
             --promotion-type=move
+
+
+      - name: Promote to PROD and Update Latest Tag
+        run: |
+          # Define the new version being promoted
+          NEW_VERSION=${{ github.event.inputs.version }}
+          RELEASE_BUNDLE_NAME=bookverse-platform
+          JFROG_RECORDS_API_URL="${{ vars.JFROG_URL }}/lifecycle/api/v2/release_bundle/records/$RELEASE_BUNDLE_NAME"
+
+          # 1. Promote the new version to the PROD repository
+          jfrog rbp bookverse-platform ${{ github.event.inputs.version }} PROD \
+            --project=bookverse \
+            --include-repos='bookverse-docker-external-prod' \
+            --promotion-type=move
+
+          # 2. Apply the 'latest' tag to the newly promoted version
+          echo "Applying 'latest' tag to version $NEW_VERSION..."
+          jfrog rba "$RELEASE_BUNDLE_NAME" "$NEW_VERSION" --tag=latest --properties="status=prod"
+          
+          # 3. Use the API to find ALL OTHER release bundles currently tagged 'latest'
+          echo "Searching for all other bundles tagged 'latest' to clean them up..."
+          LATEST_BUNDLES_JSON=$(curl -s -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "$JFROG_RECORDS_API_URL?project=bookverse")
+          
+          # Use jq to create a list of versions to process, excluding the version we just promoted.
+          PREVIOUS_LATEST_VERSIONS=$(echo "$LATEST_BUNDLES_JSON" | jq -r --arg new_ver "$NEW_VERSION" '.release_bundles[] | select(.tag == "latest" and .release_bundle_version != $new_ver) | .release_bundle_version')
+
+          # 4. Loop through all found versions and restore their original tag
+          if [[ -n "$PREVIOUS_LATEST_VERSIONS" ]]; then
+            echo "Found previous latest versions to process: $PREVIOUS_LATEST_VERSIONS"
+            for version in $PREVIOUS_LATEST_VERSIONS; do
+              echo "--- Processing old version: $version ---"
+              
+              # Fetch the specific properties for this old version
+              PROPS_JSON=$(curl -s -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "$JFROG_RECORDS_API_URL/$version?project=bookverse")
+              OLD_CADENCE_TAG=$(echo "$PROPS_JSON" | jq -r '.properties[] | select(.key == "release.cadence") | .value')
+
+              if [[ -n "$OLD_CADENCE_TAG" ]]; then
+                echo "Restoring original tag for version $version to '$OLD_CADENCE_TAG'..."
+                # Correctly replaces the 'latest' tag with the original cadence tag
+                jfrog rba "$RELEASE_BUNDLE_NAME" "$version" --tag="$OLD_CADENCE_TAG"
+              else
+                echo "Warning: Could not find 'release.cadence' property for version $version. Cannot restore tag."
+              fi
+            done
+            echo "--- Cleanup complete ---"
+          else
+            echo "No previous 'latest' versions found to clean up."
+          fi
+
+          echo "Promotion successful. Version $NEW_VERSION is now the single 'latest' release."
