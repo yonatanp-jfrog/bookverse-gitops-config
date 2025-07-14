@@ -30,24 +30,30 @@ jobs:
           sudo apt-get install -y jq
           sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq
 
-      - name: Set Bundle Info and Verify Name
-        id: get_info
+      - name: Set Bundle Info and Check Name
+        id: check_bundle
         run: |
+          BUNDLE_NAME=""
           if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
-            echo "BUNDLE_NAME=${{ github.event.client_payload.name }}" >> $GITHUB_ENV
+            BUNDLE_NAME="${{ github.event.client_payload.name }}"
             echo "BUNDLE_VERSION=${{ github.event.client_payload.version }}" >> $GITHUB_ENV
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "BUNDLE_NAME=${{ github.event.inputs.bundle_name }}" >> $GITHUB_ENV
+            BUNDLE_NAME="${{ github.event.inputs.bundle_name }}"
             echo "BUNDLE_VERSION=${{ github.event.inputs.bundle_ver }}" >> $GITHUB_ENV
           fi
 
-      - name: "Conditional Execution: only run for 'bookverse-platform'"
-        if: ${{ env.BUNDLE_NAME }} != 'bookverse-platform'
-        run: |
-          echo "Skipping execution because the bundle name is not 'bookverse-platform'."
-          exit 78
+          echo "BUNDLE_NAME=${BUNDLE_NAME}" >> $GITHUB_ENV
+
+          if [[ "${BUNDLE_NAME}" == "bookverse-platform" ]]; then
+            echo "Bundle name is 'bookverse-platform'. Proceeding with deployment."
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "This workflow only handles 'bookverse-platform', but received '${BUNDLE_NAME}'. Gracefully exiting."
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Update Image Tags in values.yaml
+        if: steps.check_bundle.outputs.should_run == 'true'
         run: |
           # Use a direct API call to get the platform bundle contents
           PLATFORM_BUNDLE_CONTENTS=$(curl -s -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "${{ vars.JFROG_URL }}/lifecycle/api/v2/release_bundle/records/${{ env.BUNDLE_NAME }}/${{ env.BUNDLE_VERSION }}?project=bookverse")
@@ -88,6 +94,7 @@ jobs:
           cat helm/bookverse/values.yaml
 
       - name: Commit and Push Changes
+        if: steps.check_bundle.outputs.should_run == 'true'
         run: |
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'actions@github.com'
