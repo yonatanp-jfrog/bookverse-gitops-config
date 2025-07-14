@@ -54,8 +54,12 @@ jobs:
           echo "Rolling back version $ROLLBACK_VERSION..."
           ROLLBACK_API_URL="${{ vars.JFROG_URL }}/lifecycle/api/v2/promotion/rollback/bookverse-platform/$ROLLBACK_VERSION?project=bookverse&async=false"
           
-          # Perform the rollback API call for the specified version
-          curl -X POST -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "$ROLLBACK_API_URL"
+          # Perform the rollback API call, specifying the environment to roll back from.
+          # The -f flag will cause the command to fail on HTTP errors.
+          curl -f -X POST -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" \
+               -H "Content-Type: application/json" \
+               --data '{"from_environment": "PROD"}' \
+               "$ROLLBACK_API_URL"
 
           # Check if the rolled-back version was the latest one
           if [ "$LATEST_VERSION" == "$ROLLBACK_VERSION" ]; then
@@ -78,6 +82,17 @@ jobs:
             echo "is_latest=false" >> $GITHUB_OUTPUT
             echo "new_latest_exists=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: Promote New Latest to PROD
+        if: steps.rollback.outputs.is_latest == 'true' && steps.rollback.outputs.new_latest_exists == 'true'
+        env:
+          NEW_LATEST: ${{ steps.rollback.outputs.new_latest_version }}
+        run: |
+          echo "Promoting version ${NEW_LATEST} to PROD to make it the new latest."
+          jfrog rbp bookverse-platform $NEW_LATEST PROD \
+            --project=bookverse \
+            --include-repos='bookverse-docker-external-prod' \
+            --promotion-type=move
 
       - name: Trigger Cluster Update with New Latest Version
         if: steps.rollback.outputs.is_latest == 'true' && steps.rollback.outputs.new_latest_exists == 'true'
