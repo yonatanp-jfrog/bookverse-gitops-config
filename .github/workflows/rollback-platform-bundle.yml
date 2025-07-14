@@ -18,6 +18,8 @@ jobs:
 
       - name: Setup JFrog CLI
         uses: jfrog/setup-jfrog-cli@v4
+        with:
+          version: latest
         env:
           JF_URL: ${{ vars.JFROG_URL }}
           JF_USER: ${{ vars.JFROG_USER }}
@@ -29,40 +31,47 @@ jobs:
           ALL_VERSIONS_JSON=$(curl -s -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "${{ vars.JFROG_URL }}/lifecycle/api/v2/release_bundle/records/bookverse-platform?project=bookverse&order_by=release_bundle_semver&direction=desc")
           echo "versions_json=$ALL_VERSIONS_JSON" >> $GITHUB_OUTPUT
 
-      - name: Perform Rollback
+      - name: Perform Rollback and Determine Next Steps
         id: rollback
         env:
           ALL_VERSIONS: ${{ steps.get_versions.outputs.versions_json }}
           ROLLBACK_VERSION: ${{ github.event.inputs.bundle_version }}
         run: |
           LATEST_VERSION=$(echo "$ALL_VERSIONS" | jq -r '.release_bundles[0].release_bundle_version')
-
-          if [ "$LATEST_VERSION" != "$ROLLBACK_VERSION" ]; then
-            echo "::error::Rollback is only supported for the 'latest' version. The latest version is $LATEST_VERSION."
-            exit 1
-          fi
-
+          
           echo "Rolling back version $ROLLBACK_VERSION..."
           ROLLBACK_API_URL="${{ vars.JFROG_URL }}/lifecycle/api/v2/promotion/rollback/bookverse-platform/$ROLLBACK_VERSION?project=bookverse&async=false"
           
+          # Perform the rollback API call for the specified version
           curl -X POST -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "$ROLLBACK_API_URL"
 
-          # Determine the new latest version to promote
-          NEW_LATEST_VERSION=$(echo "$ALL_VERSIONS" | jq -r '.release_bundles[1].release_bundle_version')
-          
-          if [ "$NEW_LATEST_VERSION" == "null" ]; then
-            echo "No previous version available to become the new 'latest'."
-            echo "new_latest_exists=false" >> $GITHUB_OUTPUT
+          # Check if the rolled-back version was the latest one
+          if [ "$LATEST_VERSION" == "$ROLLBACK_VERSION" ]; then
+            echo "The rolled-back version was the latest. Determining new latest version to promote."
+            echo "is_latest=true" >> $GITHUB_OUTPUT
+            
+            # Find the next newest version from the list
+            NEW_LATEST_VERSION=$(echo "$ALL_VERSIONS" | jq -r '.release_bundles[1].release_bundle_version')
+            
+            if [ "$NEW_LATEST_VERSION" == "null" ]; then
+              echo "No previous version available to become the new 'latest'."
+              echo "new_latest_exists=false" >> $GITHUB_OUTPUT
+            else
+              echo "The new latest version is $NEW_LATEST_VERSION."
+              echo "new_latest_exists=true" >> $GITHUB_OUTPUT
+              echo "new_latest_version=$NEW_LATEST_VERSION" >> $GITHUB_OUTPUT
+            fi
           else
-            echo "The new latest version is $NEW_LATEST_VERSION."
-            echo "new_latest_exists=true" >> $GITHUB_OUTPUT
-            echo "new_latest_version=$NEW_LATEST_VERSION" >> $GITHUB_OUTPUT
+            echo "The rolled-back version was not the latest. No new promotion will be triggered."
+            echo "is_latest=false" >> $GITHUB_OUTPUT
+            echo "new_latest_exists=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Trigger Cluster Update with New Latest Version
-        if: steps.rollback.outputs.new_latest_exists == 'true'
+        if: steps.rollback.outputs.is_latest == 'true' && steps.rollback.outputs.new_latest_exists == 'true'
         env:
           NEW_LATEST: ${{ steps.rollback.outputs.new_latest_version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Triggering promotion-to-commit workflow for new latest version: $NEW_LATEST"
           gh workflow run promotion-to-commit.yml -f bundle_name=bookverse-platform -f bundle_ver=$NEW_LATEST
@@ -72,4 +81,6 @@ jobs:
           ROLLED_BACK_VERSION: ${{ github.event.inputs.bundle_version }}
         run: |
           echo "Promoting rolled-back version $ROLLED_BACK_VERSION to bookverse-Quarantine..."
-          jfrog rbp bookverse-platform $ROLLED_BACK_VERSION bookverse-Quarantine --project=bookverse
+          jfrog rbp bookverse-platform $ROLLED_BACK_VERSION bookverse-Quarantine --project=bookverse \ 
+            --include-repos='bookverse-docker-quarantine' \
+            --promotion-type=move
