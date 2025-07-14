@@ -135,7 +135,7 @@ jobs:
           echo "Selected Cadence: $RELEASE_CADENCE"
           echo "Selected Feature ID: $FEATURE_ID"
 
-          jfrog rba ${{ github.event.repository.name }} ${{ steps.set_version.outputs.VERSION }} \
+          jfrog rba bookverse-platform ${{ steps.determine_version.outputs.platform_version }} \
             --tag=$RELEASE_CADENCE \
             --properties="release.cadence=$RELEASE_CADENCE;feature.name=$FEATURE_ID;branch=${{ github.ref_name }};promoted_by=${{ github.actor }}"
 
