@@ -86,7 +86,7 @@ jobs:
 
           jf evd create --predicate dev-smoke-test.json \
           --predicate-type "Test Results" \
-          --release-bundle ookverse-platform --release-bundle-version ${{ github.event.inputs.version }} \
+          --release-bundle bookverse-platform --release-bundle-version ${{ github.event.inputs.version }} \
           --project bookverse --key-alias "bookverse_key" --key "${{ secrets.BOOKVERSE_KEY }}"
 
       - name: Promote to QA
