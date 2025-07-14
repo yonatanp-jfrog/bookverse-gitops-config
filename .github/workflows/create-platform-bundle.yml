@@ -30,6 +30,8 @@ jobs:
 
       - name: Setup JFrog CLI
         uses: jfrog/setup-jfrog-cli@v4
+        with:
+          version: latest
         env:
           JF_URL: ${{ vars.JFROG_URL }}
           JF_USER: ${{ vars.JFROG_USER }}
@@ -114,6 +116,28 @@ jobs:
             }' | curl -X POST -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" -H "Content-Type: application/json" \
             --data @- \
             "${{ vars.JFROG_URL }}/lifecycle/api/v2/release_bundle?project=bookverse&async=false"
+
+      - name: Set Initial Annotations on Release Bundle
+        run: |
+          # Randomly select a release cadence and feature ID
+          cadences=("hotfix" "major" "scheduled" "experimental")
+          feature_prefixes=("JIRA" "BUG" "FEAT" "TASK")
+          feature_suffixes=("Login" "UI-Fix" "API-Update" "Refactor-Core")
+          
+          RELEASE_CADENCE=${cadences[$RANDOM % ${#cadences[@]}]}
+          
+          # Generate a more random feature ID
+          PREFIX=${feature_prefixes[$RANDOM % ${#feature_prefixes[@]}]}
+          SUFFIX=${feature_suffixes[$RANDOM % ${#feature_suffixes[@]}]}
+          RANDOM_NUM=$((RANDOM % 900 + 100)) # Random 3-digit number
+          FEATURE_ID="$PREFIX-$RANDOM_NUM-$SUFFIX"
+          
+          echo "Selected Cadence: $RELEASE_CADENCE"
+          echo "Selected Feature ID: $FEATURE_ID"
+
+          jfrog rba ${{ github.event.repository.name }} ${{ steps.set_version.outputs.VERSION }} \
+            --tag=$RELEASE_CADENCE \
+            --properties="release.cadence=$RELEASE_CADENCE;feature.name=$FEATURE_ID;branch=${{ github.ref_name }};promoted_by=${{ github.actor }}"
 
       - name: Create and Attach Build Link Evidence
         run: |
