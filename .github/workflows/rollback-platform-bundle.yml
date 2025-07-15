@@ -67,9 +67,10 @@ jobs:
             PROD_BUNDLES_JSON=$(curl -s -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "${{ vars.JFROG_URL }}/lifecycle/api/v2/promotion/release-bundles-by-environment/PROD?project=bookverse&order_by=release_bundle_semver&direction=desc")
             
             # Filter for the 'bookverse-platform' bundle and get the latest version.
-            NEW_LATEST_VERSION=$(echo "$PROD_BUNDLES_JSON" | jq -r '[.release_bundles[] | select(.release_bundle_name == "bookverse-platform")][0].release_bundle_version')
+            # This updated jq command safely handles null or empty results.
+            NEW_LATEST_VERSION=$(echo "$PROD_BUNDLES_JSON" | jq -r '(.release_bundles | map(select(.release_bundle_name == "bookverse-platform")) | .[0].release_bundle_version) // "null"')
 
-            if [ "$NEW_LATEST_VERSION" == "null" ] || [ -z "$NEW_LATEST_VERSION" ]; then
+            if [ "$NEW_LATEST_VERSION" == "null" ]; then
               echo "No other version found in PROD to become the new 'latest'."
               echo "new_latest_exists=false" >> $GITHUB_OUTPUT
             else
