@@ -52,28 +52,26 @@ jobs:
           LATEST_VERSION=$(echo "$ALL_VERSIONS" | jq -r '.release_bundles[0].release_bundle_version')
           
           echo "Rolling back version $ROLLBACK_VERSION..."
-          ROLLBACK_API_URL="${{ vars.JFROG_URL }}/lifecycle/api/v2/promotion/rollback/bookverse-platform/$ROLLBACK_VERSION?project=bookverse&async=false"
+          ROLLBACK_API_URL="${{ vars.JFROG_URL }}/lifecycle/api/v2/promotion/rollback/bookverse-platform/$ROLLBACK_VERSION?project=bookverse&async=false&from_environment=PROD"
           
-          # Perform the rollback API call, specifying the environment and repository to roll back from.
-          # Removed -f to ensure error messages are visible in logs.
-          curl -X POST -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" \
-               -H "Content-Type: application/json" \
-               --data '{"from_environment": "PROD", "from_repository_key": "bookverse-release-bundles-v2"}' \
-               "$ROLLBACK_API_URL"
+          # Perform the rollback API call with an empty body.
+          curl -X POST -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "$ROLLBACK_API_URL"
 
           # Check if the rolled-back version was the latest one
           if [ "$LATEST_VERSION" == "$ROLLBACK_VERSION" ]; then
-            echo "The rolled-back version was the latest. Determining new latest version to promote."
+            echo "The rolled-back version was the latest. Finding the new latest version already in PROD."
             echo "is_latest=true" >> $GITHUB_OUTPUT
             
-            # Find the next newest version from the list
-            NEW_LATEST_VERSION=$(echo "$ALL_VERSIONS" | jq -r '.release_bundles[1].release_bundle_version')
-            
-            if [ "$NEW_LATEST_VERSION" == "null" ]; then
-              echo "No previous version available to become the new 'latest'."
+            # Find the new latest version by checking bundles in the PROD environment.
+            echo "Fetching bundles from PROD to find new latest version..."
+            PROD_BUNDLES_JSON=$(curl -s -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" "${{ vars.JFROG_URL }}/lifecycle/api/v2/promotion/release-bundles-by-environment/PROD?project=bookverse&release_bundle_name=bookverse-platform&order_by=release_bundle_semver&direction=desc")
+            NEW_LATEST_VERSION=$(echo "$PROD_BUNDLES_JSON" | jq -r '.release_bundles[0].release_bundle_version')
+
+            if [ "$NEW_LATEST_VERSION" == "null" ] || [ -z "$NEW_LATEST_VERSION" ]; then
+              echo "No other version found in PROD to become the new 'latest'."
               echo "new_latest_exists=false" >> $GITHUB_OUTPUT
             else
-              echo "The new latest version is $NEW_LATEST_VERSION."
+              echo "The new latest version in PROD is $NEW_LATEST_VERSION."
               echo "new_latest_exists=true" >> $GITHUB_OUTPUT
               echo "new_latest_version=$NEW_LATEST_VERSION" >> $GITHUB_OUTPUT
             fi
@@ -82,17 +80,6 @@ jobs:
             echo "is_latest=false" >> $GITHUB_OUTPUT
             echo "new_latest_exists=false" >> $GITHUB_OUTPUT
           fi
-
-      - name: Promote New Latest to PROD
-        if: steps.rollback.outputs.is_latest == 'true' && steps.rollback.outputs.new_latest_exists == 'true'
-        env:
-          NEW_LATEST: ${{ steps.rollback.outputs.new_latest_version }}
-        run: |
-          echo "Promoting version ${NEW_LATEST} to PROD to make it the new latest."
-          jfrog rbp bookverse-platform $NEW_LATEST PROD \
-            --project=bookverse \
-            --include-repos='bookverse-docker-external-prod' \
-            --promotion-type=move
 
       - name: Trigger Cluster Update with New Latest Version
         if: steps.rollback.outputs.is_latest == 'true' && steps.rollback.outputs.new_latest_exists == 'true'
