@@ -68,6 +68,8 @@ jobs:
             NEW_LATEST_VERSION=$(echo "$PROD_BUNDLES_JSON" | jq -r '.release_bundles[0].release_bundle_version')
 
             if [ "$NEW_LATEST_VERSION" == "null" ] || [ -z "$NEW_LATEST_VERSION" ]; then
+              echo "The prod bundles are $PROD_BUNDLES_JSON"
+
               echo "No other version found in PROD to become the new 'latest'."
               echo "new_latest_exists=false" >> $GITHUB_OUTPUT
             else
