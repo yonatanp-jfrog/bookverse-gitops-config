@@ -44,8 +44,19 @@ jobs:
           }
           EOF
 
+          # Create Markdown Evidence
+          cat <<EOF > commit-review.md
+          # Commit Review Evidence
+          This evidence attests that the code has passed the peer review gate.
+          | Field         | Value        |
+          |---------------|--------------|
+          | **Committer** | \`$committer\` |
+          | **Reviewer** | \`$reviewer\`  |
+          | **Status** | **$status** |
+          EOF
+
           jf evd create --predicate commit-review.json \
-          --predicate-type "Attribute Report" \
+          --predicate-type "Attribute Report" --markdown commit-review.md \
           --release-bundle bookverse-platform --release-bundle-version ${{ github.event.inputs.version }} \
           --project bookverse --key-alias "bookverse_key" --key "${{ secrets.BOOKVERSE_KEY }}"
 

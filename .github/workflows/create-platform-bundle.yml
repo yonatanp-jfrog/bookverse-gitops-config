@@ -148,7 +148,14 @@ jobs:
           }
           EOF
 
+          # Create Markdown Evidence
+          cat <<EOF > build-link-evidence.md
+          # Build Link Evidence
+          This evidence links the release bundle to the CI/CD pipeline that built it.
+          - **Workflow Run:** [${{ github.server.url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}](${{ github.server.url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          EOF
+
           jf evd create --predicate build-link-evidence.json \
-          --predicate-type "Build Link" \
+          --predicate-type "Build Link"  --markdown build-link-evidence.md \
           --release-bundle bookverse-platform --release-bundle-version ${{ steps.determine_version.outputs.platform_version }} \
           --project bookverse --key-alias "bookverse_key" --key "${{ secrets.BOOKVERSE_KEY }}"
