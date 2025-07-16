@@ -73,7 +73,15 @@ jobs:
           # Generate random test results
           passed_tests=$((RANDOM % 3 + 1))
           failed_tests=$((3 - passed_tests))
-          duration=$(echo "scale=2; $RANDOM/1000" | bc)
+          
+          # Calculate duration and fix potential leading dot from bc
+          duration_raw=$(echo "scale=2; $RANDOM/1000" | bc)
+          if [[ $duration_raw == .* ]]; then
+            duration="0$duration_raw"
+          else
+            duration="$duration_raw"
+          fi
+
           api_duration=$((RANDOM % 200 + 50))
           db_duration=$((RANDOM % 100 + 20))
           frontend_duration=$((RANDOM % 15000 + 5000))
@@ -217,7 +225,7 @@ jobs:
             ]
           }
           EOF
-          EOF
+          
           cat <<EOF > stage-signoff.md
           # STAGE Sign-off
           | Field         | Value      |
@@ -235,7 +243,7 @@ jobs:
             "details": "Application ran successfully under load test in staging environment."
           }
           EOF
-          EOF
+          
           cat <<EOF > stage-runtime-trace.md
           # STAGE Runtime Trace
           - **Environment:** STAGE
@@ -244,12 +252,12 @@ jobs:
           EOF
 
           jf evd create --predicate stage-signoff.json \
-          --predicate-type "Attribute Rport" --markdown stage-signoff.md \
+          --predicate-type "Attribute Report" --markdown stage-signoff.md \
           --release-bundle bookverse-platform --release-bundle-version ${{ github.event.inputs.version }} \
           --project bookverse --key-alias "bookverse_key" --key "${{ secrets.BOOKVERSE_KEY }}"
 
           jf evd create --predicate stage-runtime-trace.json \
-          --predicate-type "Runtime Trace" --predicate-type "Runtime Trace" \
+          --predicate-type "Runtime Trace" \
           --release-bundle bookverse-platform --release-bundle-version ${{ github.event.inputs.version }} \
           --project bookverse --key-alias "bookverse_key" --key "${{ secrets.BOOKVERSE_KEY }}"
 
