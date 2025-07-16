@@ -246,14 +246,6 @@ jobs:
             --include-repos='bookverse-docker-external' \
             --promotion-type=move
 
-      - name: Promote to PROD
-        run: |
-          echo "Promoting bookverse-platform version ${{ github.event.inputs.version }} to PROD..."
-          jfrog rbp bookverse-platform ${{ github.event.inputs.version }} PROD \
-            --project=bookverse \
-            --include-repos='bookverse-docker-external-prod' \
-            --promotion-type=move
-
 
       - name: Promote to PROD and Update Latest Tag
         run: |
