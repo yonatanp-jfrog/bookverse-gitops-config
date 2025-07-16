@@ -217,6 +217,14 @@ jobs:
             ]
           }
           EOF
+          EOF
+          cat <<EOF > stage-signoff.md
+          # STAGE Sign-off
+          | Field         | Value      |
+          |---------------|------------|
+          | **Approved By** | \`$approver\`|
+          | **Gate Status** | PASSED     |
+          EOF
 
           cat <<EOF > stage-runtime-trace.json
           {
@@ -227,14 +235,21 @@ jobs:
             "details": "Application ran successfully under load test in staging environment."
           }
           EOF
+          EOF
+          cat <<EOF > stage-runtime-trace.md
+          # STAGE Runtime Trace
+          - **Environment:** STAGE
+          - **Status:** SUCCESS
+          - **Trace ID:** \`$trace_id\`
+          EOF
 
           jf evd create --predicate stage-signoff.json \
-          --predicate-type "Attribute Rport" \
+          --predicate-type "Attribute Rport" --markdown stage-signoff.md \
           --release-bundle bookverse-platform --release-bundle-version ${{ github.event.inputs.version }} \
           --project bookverse --key-alias "bookverse_key" --key "${{ secrets.BOOKVERSE_KEY }}"
 
           jf evd create --predicate stage-runtime-trace.json \
-          --predicate-type "Runtime Trace" \
+          --predicate-type "Runtime Trace" --predicate-type "Runtime Trace" \
           --release-bundle bookverse-platform --release-bundle-version ${{ github.event.inputs.version }} \
           --project bookverse --key-alias "bookverse_key" --key "${{ secrets.BOOKVERSE_KEY }}"
 
