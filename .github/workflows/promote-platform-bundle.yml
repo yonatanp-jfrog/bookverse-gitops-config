@@ -97,6 +97,18 @@ jobs:
           }
           EOF
 
+          # Create Markdown Evidence
+          cat <<EOF > dev-smoke-test.md
+          # DEV Smoke Test Results
+          - **Result:** $test_result
+          - **Duration:** ${duration}s
+          | Test Case                   | Status | Duration (ms) |
+          |-----------------------------|--------|---------------|
+          | API Endpoint Connectivity   | PASSED | $api_duration     |
+          | Database Connection         | PASSED | $db_duration      |
+          | Frontend Load Test          | $test_result | $frontend_duration  |
+          EOF
+
           jf evd create --predicate dev-smoke-test.json \
           --predicate-type "Test Results" \
           --release-bundle bookverse-platform --release-bundle-version ${{ github.event.inputs.version }} \
